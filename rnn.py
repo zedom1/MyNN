@@ -1,14 +1,7 @@
 import copy, numpy as np
+from activation import Sigmoid
 
 np.random.seed(0)
-
-# compute sigmoid nonlinearity
-def sigmoid(x):
-	return 1/(1+np.exp(-x))
-
-# convert output of sigmoid function to its derivative
-def sigmoid_derivative(x):
-	return x*(1-x)
 
 def bin2int(d):
 	out = 0
@@ -30,8 +23,9 @@ class RNN(object):
 		self.w_hidden_output = 2*np.random.random((self.hidden_dim, self.output_dim)) - 1
 		self.w_hidden_hidden = 2*np.random.random((self.hidden_dim, self.hidden_dim)) - 1
 
+		self.activation = Sigmoid()
 
-	def train(self, a, b, c, learning_rate = 0.1):
+	def train(self, a, b, c, learning_rate = 0.1, verbose = False):
 
 		global acc, epochs
 		# where we'll store our best guess (binary encoded)
@@ -52,14 +46,14 @@ class RNN(object):
 			y = np.array([c[0][position]]).T
 
 			# hidden layer (input ~+ pre_hidden)
-			new_hidden = sigmoid(np.dot(X, self.w_input_hidden) + np.dot(hidden_layer[-1], self.w_hidden_hidden))
+			new_hidden = self.activation._calculate((np.dot(X, self.w_input_hidden) + np.dot(hidden_layer[-1], self.w_hidden_hidden)))
 
 			# output layer (new binary representation)
-			predict = sigmoid(np.dot(new_hidden, self.w_hidden_output))
+			predict = self.activation._calculate(np.dot(new_hidden, self.w_hidden_output))
 
 			# did we miss?... if so, by how much?
 			error = y - predict
-			deltas.append((error)*sigmoid_derivative(predict))
+			deltas.append((error)*self.activation._derivative_with_calculate(predict))
 			overallError += np.abs(error[0][0])
 		
 			# decode estimate so we can print it out
@@ -92,7 +86,7 @@ class RNN(object):
 			
 			delta_c_h += np.atleast_2d(accumulate_hidden_delta).dot(self.w_hidden_hidden)
 
-			delta_c_h *= sigmoid_derivative(now_hidden_layer)
+			delta_c_h *= self.activation._derivative_with_calculate(now_hidden_layer)
 
 			accumulate_hidden_delta = delta_c_h
 
@@ -109,7 +103,7 @@ class RNN(object):
 		w_ho_update *= 0
 		
 		# print out progress
-		if(epochs % 1000 == 0):
+		if verbose:
 			print("Error: " + str(overallError))
 			print("Pred: " + ' '.join([str(i[0]) for i in d[0]]))
 			print("True: " + ' '.join([str(i[0]) for i in c[0]]))
@@ -122,6 +116,7 @@ class RNN(object):
 			print("------------")
 			print("Accuracy = {}".format(acc/1000.0))
 			acc = 0
+			epochs += 1
 
 # training dataset generation
 int2binary = {}
@@ -165,4 +160,7 @@ for i in range(epochs):
 	c = int2binary[c_int]
 	c = np.reshape(c, (1, -1, 1))
 
-	rnn.train(a, b, c)
+	if i%1000 == 0:
+		rnn.train(a, b, c, verbose = True)
+	else:
+		rnn.train(a, b, c)

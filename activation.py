@@ -15,7 +15,6 @@ class Activation(metaclass = abc.ABCMeta):
 
 
 class Sigmoid(Activation):
-	"""docstring for Task1"""
 	def __init__(self):
 		super(Activation, self).__init__()
 
@@ -30,7 +29,16 @@ class Sigmoid(Activation):
 		return x*(1-x)
 
 
+class Tanh(Activation):
+	def __init__(self):
+		super(Activation, self).__init__()
 
-a = Task1(1)
-a.run()
+	def _calculate(self, x):
+		return np.tanh(x) 
 
+	def _derivative(self, x):
+		x = self._calculate(x)
+		return (1-x*x)
+
+	def _derivative_with_calculate(self, x):
+		return (1-x*x)
