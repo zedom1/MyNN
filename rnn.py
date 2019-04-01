@@ -10,7 +10,6 @@ def bin2int(d):
 	return out
 
 class RNN(object):
-	"""docstring for RNN"""
 
 	def __init__(self, arg):
 		super(RNN, self).__init__()
@@ -27,11 +26,10 @@ class RNN(object):
 
 	def train(self, a, b, c, learning_rate = 0.1, verbose = False):
 
-		global acc, epochs
-		# where we'll store our best guess (binary encoded)
 		d = np.zeros_like(c)
 		overallError = 0
 		deltas = list()
+		predicts = list()
 		hidden_layer = list()
 		hidden_layer.append(np.zeros(self.hidden_dim))
 		# Forwarding
@@ -39,7 +37,6 @@ class RNN(object):
 		steps = np.shape(a)[1]
 
 		for position in range(steps):
-			
 			# generate input and output
 			
 			X = np.array([a[0][position],b[0][position]]).T
@@ -50,28 +47,23 @@ class RNN(object):
 
 			# output layer (new binary representation)
 			predict = self.activation._calculate(np.dot(new_hidden, self.w_hidden_output))
-
+			predicts.append(predict)
 			# did we miss?... if so, by how much?
 			error = y - predict
 			deltas.append((error)*self.activation._derivative_with_calculate(predict))
 			overallError += np.abs(error[0][0])
-		
-			# decode estimate so we can print it out
-			d[0][position] = np.round(predict[0])
 			
 			# store hidden layer so we can use it in the next timestep
 			hidden_layer.append(copy.deepcopy(new_hidden))
 
-		# Backward update
+		# Backward update initialize
 		accumulate_hidden_delta = np.zeros(hidden_dim)
-		
-		predict_num = bin2int(np.squeeze(d[0]))
-		acc += int(predict_num == c_int)
 
 		w_ih_update = np.zeros_like(self.w_input_hidden)
 		w_ho_update = np.zeros_like(self.w_hidden_output)
 		w_hh_update = np.zeros_like(self.w_hidden_hidden)
 
+		# Backward update
 		for position in range(steps):
 			
 			X = np.array([a[0][steps - position - 1],b[0][steps - position - 1]]).T
@@ -101,23 +93,12 @@ class RNN(object):
 		w_ih_update *= 0
 		w_hh_update *= 0
 		w_ho_update *= 0
-		
-		# print out progress
+
 		if verbose:
-			print("Error: " + str(overallError))
-			print("Pred: " + ' '.join([str(i[0]) for i in d[0]]))
-			print("True: " + ' '.join([str(i[0]) for i in c[0]]))
-			
-			a_int = bin2int(np.squeeze(a))
-			b_int = bin2int(np.squeeze(b))
-			out = bin2int(np.squeeze(d))
-
-			print(str(a_int) + " + " + str(b_int) + " = " + str(out))
-			print("------------")
-			print("Accuracy = {}".format(acc/1000.0))
-			acc = 0
-			epochs += 1
-
+			print("Overall Error = {}".format(overallError))
+		
+		return predicts, hidden_layer[-1]
+		
 # training dataset generation
 int2binary = {}
 binary_dim = 8
@@ -160,7 +141,30 @@ for i in range(epochs):
 	c = int2binary[c_int]
 	c = np.reshape(c, (1, -1, 1))
 
+
+
 	if i%1000 == 0:
-		rnn.train(a, b, c, verbose = True)
+		output, hidden = rnn.train(a, b, c, verbose = True)
 	else:
-		rnn.train(a, b, c)
+		output, hidden = rnn.train(a, b, c)
+
+	# decode output
+	d = list()
+	for j in output:
+		d.append(int(np.round(j[0])))
+	predict_num = bin2int(np.squeeze(d))
+	acc += int(predict_num == c_int)
+	
+	if i%1000 == 0:
+		print("Pred: " + ' '.join([str(i) for i in d]))
+		print("True: " + ' '.join([str(i[0]) for i in c[0]]))
+		
+		a_int = bin2int(np.squeeze(a))
+		b_int = bin2int(np.squeeze(b))
+		out = bin2int(np.squeeze(d))
+
+		print(str(a_int) + " + " + str(b_int) + " = " + str(out))
+		print("------------")
+		print("Accuracy = {}".format(acc/1000.0))
+		acc = 0
+
