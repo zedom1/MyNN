@@ -31,12 +31,13 @@ arguments = {
 
 # training logic, for one epoch
 acc = 0
+total_loss = 0
 
 epochs = 50000
 
 rnn = RNN(arguments)
 
-for i in range(epochs):
+for i in range(1, epochs+1):
 	# generate a simple addition problem (a + b = c)
 	a_int = np.random.randint(largest_number/2) # int version
 	a = int2binary[a_int] # binary encoding
@@ -49,13 +50,14 @@ for i in range(epochs):
 	c_int = a_int + b_int
 	c = int2binary[c_int]
 	c = np.reshape(c, (1, -1, 1))
-
+	X = np.concatenate((a,b), axis= 2)
+	y = c
 
 
 	if i%1000 == 0:
-		output, hidden = rnn.train(a, b, c, verbose = True)
+		output, hidden, loss = rnn.train(X, y, verbose = True)
 	else:
-		output, hidden = rnn.train(a, b, c)
+		output, hidden, loss = rnn.train(X, y)
 
 	# decode output
 	d = list()
@@ -63,6 +65,7 @@ for i in range(epochs):
 		d.append(int(np.round(j[0])))
 	predict_num = bin2int(np.squeeze(d))
 	acc += int(predict_num == c_int)
+	total_loss += loss
 	
 	if i%1000 == 0:
 		print("Pred: " + ' '.join([str(i) for i in d]))
@@ -75,5 +78,7 @@ for i in range(epochs):
 		print(str(a_int) + " + " + str(b_int) + " = " + str(out))
 		print("------------")
 		print("Accuracy = {}".format(acc/1000.0))
+		print("Total loss = {}".format(total_loss/1000.0))
+		total_loss = 0
 		acc = 0
 
