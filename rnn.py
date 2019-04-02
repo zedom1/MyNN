@@ -19,73 +19,70 @@ class RNN(object):
 
 	def train(self, X, y, learning_rate = 0.1, verbose = False):
 
-		d = np.zeros_like(y)
-		overallError = 0
 		deltas = list()
 		predicts = list()
 		hidden_layer = list()
-		hidden_layer.append(np.zeros(self.hidden_dim))
+		batch_size, steps, _ = np.shape(X)
+		hidden_layer.append(np.zeros([batch_size, self.hidden_dim]))
 		# Forwarding
 		# moving along the positions in the binary encoding
-		steps = np.shape(X)[1]
+		overallError = 0
 
 		for position in range(steps):
+
 			# generate input and output
-			
-			current_X = np.atleast_2d(X[0][position].T)
-			current_y = np.atleast_2d(y[0][position].T)
-			#print(np.shape(current_X))
+			current_X = np.atleast_2d(X[:, position])
+			current_y = np.atleast_2d(y[:, position])
 			# hidden layer (input ~+ pre_hidden)
 			new_hidden = self.activation._calculate((np.dot(current_X, self.w_input_hidden) + np.dot(hidden_layer[-1], self.w_hidden_hidden)))
-
 			# output layer (new binary representation)
 			predict = self.activation._calculate(np.dot(new_hidden, self.w_hidden_output))
 			predicts.append(predict)
-			# did we miss?... if so, by how much?
-			#print(predict)
-			#print(current_y)
+			# compute error
 			error = current_y - predict
-			#print(error)
-			deltas.append((error)*self.activation._derivative_with_calculate(predict))
-			overallError += np.abs(np.sum(error))
+			delta = (error*self.activation._derivative_with_calculate(predict))
+			deltas.append(delta)
+			
+			overallError += np.abs(np.mean(error))
 			
 			# store hidden layer so we can use it in the next timestep
-			hidden_layer.append(copy.deepcopy(new_hidden))
+			hidden_layer.append(new_hidden)
 
 		# Backward update initialize
-		accumulate_hidden_delta = np.zeros(self.hidden_dim)
-
+		accumulate_hidden_delta = np.zeros([batch_size, self.hidden_dim])
+		# initialize update matrix
 		w_ih_update = np.zeros_like(self.w_input_hidden)
 		w_ho_update = np.zeros_like(self.w_hidden_output)
 		w_hh_update = np.zeros_like(self.w_hidden_hidden)
-
 		# Backward update
 		for position in range(steps):
 
-			current_X =  np.atleast_2d(X[0][steps - position - 1].T)
-			now_hidden_layer = hidden_layer[-position-1]
+			current_X =  np.atleast_2d(X[:, steps - position - 1])
+			now_hidden_layer = np.atleast_2d(hidden_layer[-position-1])
 			pre_hidden_layer = np.atleast_2d(hidden_layer[-position-2])
 			current_deltas = deltas[-position-1]
 			
 			delta_w_ho = now_hidden_layer.T.dot((np.atleast_2d(current_deltas)))
-			w_ho_update += delta_w_ho
+			w_ho_update += np.expand_dims(np.mean(delta_w_ho, axis=1), axis=1)/batch_size
 
 			delta_c_h = current_deltas.dot(self.w_hidden_output.T)
 			
 			delta_c_h += np.atleast_2d(accumulate_hidden_delta).dot(self.w_hidden_hidden)
 
 			delta_c_h *= self.activation._derivative_with_calculate(now_hidden_layer)
-
 			accumulate_hidden_delta = delta_c_h
 
 			accumulate_derivative = accumulate_hidden_delta 
-			w_ih_update += current_X.T.dot(accumulate_derivative)
-			w_hh_update += pre_hidden_layer.T.dot(accumulate_derivative)
+			w_ih_update += current_X.T.dot(accumulate_derivative)/batch_size
+			w_hh_update += pre_hidden_layer.T.dot(accumulate_derivative)/batch_size
+			
 
+		# update using gradient descent
 		self.w_input_hidden += w_ih_update * learning_rate
 		self.w_hidden_hidden += w_hh_update * learning_rate
 		self.w_hidden_output += w_ho_update * learning_rate 
 
+		# clear update
 		w_ih_update *= 0
 		w_hh_update *= 0
 		w_ho_update *= 0
