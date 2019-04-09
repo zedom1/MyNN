@@ -16,11 +16,11 @@ class LSTM(object):
 		self.w_output 			= 2*np.random.random((self.hidden_dim, self.input_dim+self.hidden_dim)) - 1
 		self.w_predict 			= 2*np.random.random((self.output_dim, self.hidden_dim)) - 1
 
-		self.activation_forget = arg["activation_forget"]() 				if "activation_forget" 			in arg else Sigmoid()
-		self.activation_memory_weight = arg["activation_memory_weight"]() 	if "activation_memory_weight" 	in arg else Sigmoid()
-		self.activation_memory_content = arg["activation_memory_content"]() if "activation_memory_content" 	in arg else Tanh()
-		self.activation_output_weight = arg["activation_output_weight"]() 	if "activation_output_weight" 	in arg else Sigmoid()
-		self.activation_output_content = arg["activation_output_content"]() if "activation_output_content" 	in arg else Tanh()
+		self.activation_forget 			= arg["activation_forget"]() 			if "activation_forget" 			in arg else Sigmoid()
+		self.activation_memory_weight 	= arg["activation_memory_weight"]() 	if "activation_memory_weight" 	in arg else Sigmoid()
+		self.activation_memory_content 	= arg["activation_memory_content"]() 	if "activation_memory_content" 	in arg else Tanh()
+		self.activation_output_weight 	= arg["activation_output_weight"]() 	if "activation_output_weight" 	in arg else Sigmoid()
+		self.activation_output_content 	= arg["activation_output_content"]() 	if "activation_output_content" 	in arg else Tanh()
 
 	def train(self, X, y, learning_rate = 0.1):
 
@@ -43,7 +43,6 @@ class LSTM(object):
 
 		list_hidden_state.append(np.zeros([batch_size, self.hidden_dim]))
 		list_cell_state.append(np.zeros([batch_size, self.hidden_dim]))
-		
 
 		# Forwarding
 		for position in range(steps):
@@ -149,9 +148,6 @@ class LSTM(object):
 			w_update_memory_content += (derivative_cell_state * memory_weight * derivative_memory_weight).T.dot(concate_X)
 			w_update_memory_weight += (derivative_cell_state * memory_content * derivative_memory_content).T.dot(concate_X)
 			w_update_forget += (derivative_cell_state * pre_cell_state * derivative_forget_weight).T.dot(concate_X)
-
-			#exit()
-			
 
 		# update using gradient descent
 		self.w_forget += learning_rate * w_update_forget /batch_size
