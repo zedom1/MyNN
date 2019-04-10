@@ -1,51 +1,65 @@
-import numpy as np
+import np as np
 
-n_samples, n_features = X.shape
-X = np.column_stack((X, np.ones((n_samples, 1))))
-y = y.reshape((-1, 1))
+class Linear_Regression(Model):
+	def __init__(self, arg):
+		
+		self.input_dim = arg["input_dim"]
+		self.output_dim = arg["output_dim"]
+		self.w = np.random.normal(1, 1, size=(self.input_dim + 1, self.output_dim))
+		self.updateMethod = arg["update"].lower() if "update" in arg else "sgd"
 
-w = np.random.normal(1, 1, size=(n_features + 1, 1))
+	def train(self, X, y, learning_rate = 0.01, update_size = None):
 
-# closed form
-for epoch in range(max_epoch):
-    w = np.linalg.inv(np.dot(X_train.T, X_train))  # update the parameters
-    w = np.dot(w, X_train.T)
-    w = np.dot(w, y_train)
-    Y_predict = np.dot(X_train, w)  # predict under the train set
-    loss_train = np.average(np.abs(Y_predict - y_train))  # calculate the absolute differences
-    losses_train.append(loss_train)
-
-    Y_predict = np.dot(X_val, w)  # predict under the validation set
-    rmse_val.append(rmse(Y_predict, y_val))
-    loss_val = np.average(np.abs(Y_predict - y_val))  # calculate the absolute differences
-    losses_val.append(loss_val)
-    #loss_zeros.append(loss_val)
-    #loss_random.append(loss_val)
-    loss_normal.append(loss_val)
+		assert len(np.shape(X)) == 2, "Invalid input shape. The input must be 2d (batch, input_dim)"
+		batch_size, input_dim = np.shape(X)
+		assert self.input_dim == input_dim, "Unmatch input_dim."
 
 
+		X = np.column_stack((X, np.ones((batch_size, 1))))
+		y = y.reshape((-1, self.output_dim))
+		
+		if self.updateMethod == "closed-form":
+			# check whether the matrix can be inversed
+			assert np.linalg.det(X) != 0, "This matrix cann't be inversed."
+			
+			# update the parameters
+			self.w = np.linalg.inv(np.dot(X.T, X))  
+		    self.w = np.dot(self.w, X.T)
+		    self.w = np.dot(self.w, y)
 
-## sgd
-for epoch in range(max_epoch):
-    diff = numpy.dot(X_train, w) - y_train
-    randind = numpy.random.randint(0,X_train.shape[0]-1)
-    
-    G = -numpy.dot(X_train[randind].T.reshape(-1,1), y_train[randind].reshape(-1,1))   # calculate the gradient
-    
-    G += numpy.dot(X_train[randind].T.reshape(-1,1),(X_train[randind].reshape(1,-1))).dot(w)
-    G = -G
-    w += learning_rate * G  # update the parameters
+		    # predict under the train set
+		    Y_predict = np.dot(X, self.w)  
+		    # calculate the absolute differences
+		    loss_train = np.average(np.abs(Y_predict - y))  
 
-    Y_predict = numpy.dot(X_train[randind], w)  # predict under the train set
-    loss_train = numpy.average(numpy.abs(Y_predict - y_train[randind]))  # calculate the absolute differences
-    losses_train.append(loss_train)
-    
+		    return Y_predict, loss_train
 
-    Y_predict = numpy.dot(X_val, w)  # predict under the validation set
-    rmse_val.append(rmse(Y_predict, y_val))
-    loss_val = numpy.average(numpy.abs(Y_predict - y_val))  # calculate the absolute differences
-    losses_val.append(loss_val)
-    #loss_zeros.append(loss_val)
-    #loss_random.append(loss_val)
-    loss_normal.append(loss_val)
+		elif self.updateMethod.lower == "sgd":
+			if update_size == None:
+				update_size = batch_size
+			assert update_size <= batch_size, "Update size lager than batch size!"
+			y_predict = np.dot(X, self.w)
+			diff = y_predict - y
+		    randind = np.random.randint(0,X.shape[0]-1, size=update_size)
+
+		    # calculate the gradient
+		    G = -np.dot(X[randind].T.reshape(-1, update_size), y[randind].reshape(update_size, -1))   
+		    G += np.dot(X[randind].T.reshape(-1, update_size), X[randind].reshape(update_size, -1)).dot(self.w)
+		    G = -G
+		    # update the parameters
+		    self.w += learning_rate * G  
+
+		    y_predict_selected = np.dot(X[randind], self.w)  
+		    loss_train = np.average(np.abs(y_predict_selected - y[randind])) 
+		    
+		    return y_predict, loss_train
+
+	def predict(self, X):
+		assert len(np.shape(X)) == 2, "Invalid input shape. The input must be 2d (batch, input_dim)"
+		batch_size, input_dim = np.shape(X)
+		assert self.input_dim == input_dim, "Unmatch input_dim."
+
+		X = np.column_stack((X, np.ones((batch_size, 1))))
+		y_predict = np.dot(X, self.w)
+		return y_predict
     
